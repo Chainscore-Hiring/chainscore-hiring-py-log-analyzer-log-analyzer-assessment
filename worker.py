@@ -67,6 +67,7 @@ class Worker:
                 print(f"Error sending heartbeat for worker {self.worker_id}: {e}")
             await asyncio.sleep(5)
 
+
     async def process_chunk_handler(self, request: Request):
         """Handle file chunk processing request."""
         try:

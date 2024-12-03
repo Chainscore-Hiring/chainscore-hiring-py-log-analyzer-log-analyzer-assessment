@@ -1,0 +1,260 @@
+
+Distributed Log Analyzer Documentation
+
+---
+
+Overview
+This system processes large log files in a distributed and scalable manner. The key components are:
+1. Coordinator: Central controller that manages workers, distributes tasks, and aggregates results.
+2. Worker: Individual units that process log file chunks and send metrics to the coordinator.
+
+---
+
+Class Documentation
+
+Coordinator Class
+
+Overview
+The Coordinator manages workers, assigns tasks, and aggregates metrics from the workers.
+
+---
+
+Attributes
+- workers (Dict): Tracks registered workers and their status (e.g., active/inactive).
+- results (Dict): Stores aggregated metrics reported by workers.
+- port (int): The port on which the coordinator server runs.
+- analyzer (Analyzer): Instance for computing real-time metrics.
+- app (FastAPI): FastAPI instance for handling HTTP requests.
+
+---
+
+Methods
+
+`__init__(self, port: int)`
+Constructor to initialize the coordinator with a specified port.
+
+Parameters:
+  - port (int): Port number for the coordinator.
+
+---
+
+`register_routes(self)`
+Defines the FastAPI endpoints for the coordinator.
+
+Endpoints:
+  - /register (POST): Register workers.
+  - /health (POST): Handle worker heartbeats.
+  - /metrics (POST): Collect metrics from workers.
+  - /metrics (GET): Provide aggregated metrics.
+
+---
+
+`start(self)`
+Starts the coordinator server.
+
+Functionality:
+  - Initializes FastAPI routes.
+  - Runs the server using uvicorn.
+
+---
+
+`register_worker(self, request: Request)`
+Handles worker registration.
+
+Endpoint: /register (POST)
+Request Body:
+  - worker_id (str): Unique identifier for the worker.
+  - port (int): Worker’s port number.
+
+Returns:
+  - Success or error response.
+
+---
+
+`health_handler(self, request: Request)`
+Handles worker heartbeats.
+
+Endpoint: /health (POST)
+Request Body:
+  - worker_id (str): Worker identifier.
+
+Functionality:
+  - Updates the worker's status as active.
+
+---
+
+`metrics_handler(self, request: Request)`
+Receives and processes metrics from workers.
+
+Endpoint: /metrics (POST)
+Request Body:
+  - worker_id (str): Worker identifier.
+  - metrics (Dict): Processed metrics from the worker.
+
+Functionality:
+  - Updates the results and passes data to the Analyzer.
+
+---
+
+`get_metrics_handler(self)`
+Serves aggregated metrics to the client.
+
+Endpoint: /metrics (GET)
+Returns:
+  - Aggregated metrics as JSON.
+
+---
+
+`distribute_work(self, filepath: str)`
+Distributes file chunks to workers.
+
+Parameters:
+  - filepath (str): Path to the log file.
+
+Functionality:
+  - Splits the file into chunks and assigns them to active workers.
+
+---
+
+`send_chunk_to_worker(self, worker_id: str, filepath: str, start: int, size: int, port: int)`
+Sends a file chunk to a worker.
+
+Parameters:
+  - worker_id (str): Worker ID.
+  - filepath (str): Path to the file.
+  - start (int): Start byte offset.
+  - size (int): Chunk size in bytes.
+  - port (int): Worker’s port.
+
+---
+
+`handle_worker_failure(self, worker_id: str)`
+Handles failure scenarios for workers.
+
+Parameters:
+  - worker_id (str): ID of the failed worker.
+
+Functionality:
+  - Reassigns unprocessed tasks to other active workers.
+
+---
+
+Worker Class
+
+Overview
+The Worker processes chunks of log files and communicates with the coordinator to provide metrics.
+
+---
+
+Attributes
+- worker_id (str): Unique identifier for the worker.
+- port (int): Port on which the worker server runs.
+- coordinator_url (str): URL of the central coordinator.
+- app (FastAPI): FastAPI instance for HTTP communication.
+- session (aiohttp.ClientSession): HTTP session for communication.
+
+---
+
+Methods
+
+`__init__(self, worker_id: str, port: int, coordinator_url: str)`
+Constructor to initialize the worker.
+
+Parameters:
+  - worker_id (str): Unique ID.
+  - port (int): Port number.
+  - coordinator_url (str): Coordinator’s URL.
+
+---
+
+`initialize(self)`
+Initializes resources, such as the HTTP session.
+
+---
+
+`cleanup(self)`
+Cleans up resources, including closing the HTTP session.
+
+---
+
+`start(self)`
+Starts the worker server.
+
+Functionality:
+  - Initializes the session.
+  - Registers the worker with the coordinator.
+  - Sends periodic heartbeats to the coordinator.
+  - Starts the FastAPI server.
+
+---
+
+`register_with_coordinator(self)`
+Registers the worker with the coordinator.
+
+Functionality:
+  - Sends a POST request to the coordinator’s /register endpoint.
+
+---
+
+`send_heartbeat(self)`
+Sends periodic heartbeats to the coordinator.
+
+Functionality:
+  - Indicates the worker is active.
+
+---
+
+`process_chunk_handler(self, request: Request)`
+Handles log file chunk processing requests.
+
+Endpoint: /process_chunk (POST)
+Request Body:
+  - filepath (str): Path to the file.
+  - start (int): Start byte offset.
+  - size (int): Chunk size in bytes.
+
+---
+
+`process_chunk(self, filepath: str, start: int, size: int) -> Dict`
+Processes a file chunk and extracts metrics.
+
+Parameters:
+  - filepath (str): Path to the log file.
+  - start (int): Starting offset.
+  - size (int): Number of bytes to read.
+
+Metrics Extracted:
+  - error_count
+  - total_response_time
+  - request_count
+  - avg_response_time
+
+---
+
+`send_metrics(self, metrics: Dict)`
+Sends extracted metrics to the coordinator.
+
+---
+
+Usage
+
+Starting the Coordinator
+```bash
+python coordinator.py --port 8000
+```
+
+Starting the Worker
+```bash
+python worker.py --id worker1 --port 8001 --coordinator http://localhost:8000
+```
+
+Workflow
+1. Coordinator starts and listens for workers.
+2. Worker registers with the coordinator.
+3. Coordinator assigns log file chunks.
+4. Worker processes chunks and reports metrics.
+5. Coordinator aggregates metrics.
+
+---
+
+

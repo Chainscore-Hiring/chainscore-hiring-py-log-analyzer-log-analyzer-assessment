@@ -1,3 +1,4 @@
+
 async def test_processing_speed():
     """Test processing speed meets requirements"""
     coordinator = Coordinator(port=8000)
